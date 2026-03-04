@@ -1,4 +1,4 @@
-"""MCP server for HamQTH.com — callsign lookup (free QRZ alternative)"""
+"""hamqth-mcp: MCP server for HamQTH.com — free callsign lookup."""
 
 from __future__ import annotations
 
