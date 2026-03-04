@@ -1,0 +1,43 @@
+[project]
+name = "hamqth-mcp"
+version = "0.1.0"
+description = "MCP server for HamQTH.com — callsign lookup (free QRZ alternative)"
+readme = "README.md"
+license = {text = "GPL-3.0-or-later"}
+authors = [{name = "Greg Beam, KI7MT"}]
+requires-python = ">=3.10"
+dependencies = [
+    "adif-mcp>=0.6.2",
+    "fastmcp>=3.0",
+]
+keywords = [
+    "amateur-radio", "ham-radio", "hamqth", "callsign-lookup", "qrz-alternative",
+    "mcp", "model-context-protocol",
+]
+classifiers = [
+    "Development Status :: 1 - Planning",
+    "Intended Audience :: Developers",
+    "Topic :: Communications :: Ham Radio",
+    "License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Operating System :: OS Independent",
+]
+
+[project.urls]
+Homepage = "https://qso-graph.io/"
+Repository = "https://github.com/qso-graph/hamqth-mcp"
+Issues = "https://github.com/qso-graph/hamqth-mcp/issues"
+
+[project.scripts]
+hamqth-mcp = "hamqth_mcp.server:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/hamqth_mcp"]
