@@ -1,3 +1,4 @@
+<!-- mcp-name: io.github.qso-graph/hamqth-mcp -->
 # hamqth-mcp
 
 MCP server for [HamQTH.com](https://www.hamqth.com/) — free callsign lookup, DXCC resolution, biography, and recent activity through any MCP-compatible AI assistant.
