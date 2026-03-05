@@ -22,6 +22,9 @@ _SESSION_TTL = 55 * 60
 # Cache TTLs
 _LOOKUP_TTL = 300.0  # 5 minutes
 _DXCC_TTL = 3600.0  # 1 hour
+_DX_SPOTS_TTL = 15.0  # 15 seconds (spots update every 15s)
+_RBN_TTL = 15.0  # 15 seconds
+_VERIFY_TTL = 300.0  # 5 minutes
 
 
 def _is_mock() -> bool:
@@ -94,6 +97,39 @@ _MOCK_DXCC_JSON = {
     "adif": 241,
 }
 
+_MOCK_DX_CSV = (
+    "JA1XYZ^14074.0^2026-03-05 12:00:00^W1AW^FT8 -12dB^Y^N^AS^20m^Japan^339\n"
+    "VP8PJ^7074.0^2026-03-05 11:55:00^KI7MT^FT8 -08dB^N^N^SA^40m^South Shetland Islands^241\n"
+    "OK2CQR^21074.0^2026-03-05 11:50:00^DL1ABC^FT8 -15dB^Y^Y^EU^15m^Czech Republic^503\n"
+)
+
+_MOCK_RBN_JSON = {
+    "DL1ABC": {
+        "dxcall": "DL1ABC",
+        "freq": "14023.4",
+        "mode": "CW",
+        "age": 4,
+        "lsn": {"W3LPL": 22, "K1TTT": 18},
+    },
+    "OK2CQR": {
+        "dxcall": "OK2CQR",
+        "freq": "7012.0",
+        "mode": "CW",
+        "age": 12,
+        "lsn": {"W1AW": 15},
+    },
+}
+
+_MOCK_VERIFY_XML = """<?xml version="1.0"?>
+<savp>
+  <result>Y</result>
+  <mycall>KI7MT</mycall>
+  <hiscall>OK2CQR</hiscall>
+  <date>20260305</date>
+  <band>20M</band>
+  <message>QSO verified</message>
+</savp>"""
+
 
 class HamQTHClient:
     """HamQTH API client with lazy session management."""
@@ -149,6 +185,16 @@ class HamQTHClient:
         except Exception:
             raise RuntimeError("HamQTH request failed — check network connectivity")
         return json.loads(body)
+
+    def _get_text(self, url: str) -> str:
+        """HTTP GET, return raw text body."""
+        req = urllib.request.Request(url, method="GET")
+        req.add_header("User-Agent", f"hamqth-mcp/{__version__}")
+        try:
+            with urllib.request.urlopen(req, timeout=15) as resp:
+                return resp.read().decode("utf-8", errors="replace")
+        except Exception:
+            raise RuntimeError("HamQTH request failed — check network connectivity")
 
     def _login(self) -> str:
         """Authenticate and return session ID."""
@@ -357,3 +403,111 @@ class HamQTHClient:
             "total": len(items),
             "activity": items,
         }
+
+    def dx_spots(self, limit: int = 60, band: str | None = None) -> list[dict[str, str]]:
+        """Live DX cluster spots (public, no auth required)."""
+        key = f"dx_spots:{limit}:{band}"
+        cached = self._cache_get(key)
+        if cached is not None:
+            return cached
+
+        if _is_mock():
+            text = _MOCK_DX_CSV
+        else:
+            params: dict[str, str] = {"limit": str(min(limit, 200))}
+            if band:
+                params["band"] = band.upper()
+            qs = urllib.parse.urlencode(params)
+            text = self._get_text(f"{_BASE}/dxc_csv.php?{qs}")
+
+        _FIELDS = (
+            "call", "freq", "datetime", "spotter", "comment",
+            "lotw", "eqsl", "continent", "band", "country", "dxcc",
+        )
+        spots: list[dict[str, str]] = []
+        for line in text.strip().splitlines():
+            parts = line.split("^")
+            if len(parts) >= len(_FIELDS):
+                spots.append(dict(zip(_FIELDS, parts[:len(_FIELDS)])))
+        self._cache_set(key, spots, _DX_SPOTS_TTL)
+        return spots
+
+    def rbn(
+        self,
+        band: str | None = None,
+        mode: str | None = None,
+        cont: str | None = None,
+        fromcont: str | None = None,
+        age: int | None = None,
+    ) -> list[dict[str, Any]]:
+        """Reverse Beacon Network data (public, no auth required)."""
+        key = f"rbn:{band}:{mode}:{cont}:{fromcont}:{age}"
+        cached = self._cache_get(key)
+        if cached is not None:
+            return cached
+
+        if _is_mock():
+            data = _MOCK_RBN_JSON
+        else:
+            params: dict[str, str] = {"data": "1"}
+            if band:
+                params["band"] = band
+            if mode:
+                params["mode"] = mode.upper()
+            if cont:
+                params["cont"] = cont.upper()
+            if fromcont:
+                params["fromcont"] = fromcont.upper()
+            if age is not None:
+                params["age"] = str(age)
+            qs = urllib.parse.urlencode(params)
+            data = self._get_json(f"{_BASE}/rbn_data.php?{qs}")
+
+        results: list[dict[str, Any]] = []
+        if isinstance(data, dict):
+            for call, info in data.items():
+                if not isinstance(info, dict):
+                    continue
+                rec: dict[str, Any] = {
+                    "call": info.get("dxcall", call),
+                    "freq": info.get("freq", ""),
+                    "mode": info.get("mode", ""),
+                    "age": info.get("age", 0),
+                }
+                lsn = info.get("lsn")
+                if isinstance(lsn, dict):
+                    rec["listeners"] = lsn
+                results.append(rec)
+
+        self._cache_set(key, results, _RBN_TTL)
+        return results
+
+    def verify_qso(
+        self, mycall: str, hiscall: str, date: str, band: str
+    ) -> dict[str, str]:
+        """Verify a QSO via SAVP protocol (public, no auth required)."""
+        key = f"verify:{mycall.upper()}:{hiscall.upper()}:{date}:{band.upper()}"
+        cached = self._cache_get(key)
+        if cached is not None:
+            return cached
+
+        if _is_mock():
+            text = _MOCK_VERIFY_XML
+        else:
+            params = urllib.parse.urlencode({
+                "mycall": mycall.upper(),
+                "hiscall": hiscall.upper(),
+                "date": date,
+                "band": band.upper(),
+            })
+            text = self._get_text(f"{_BASE}/verifyqso.php?{params}")
+
+        root = ET.fromstring(text)
+        rec: dict[str, str] = {}
+        for child in root:
+            tag = child.tag.split("}")[-1] if "}" in child.tag else child.tag
+            if child.text:
+                rec[tag] = child.text.strip()
+
+        self._cache_set(key, rec, _VERIFY_TTL)
+        return rec

@@ -1,7 +1,7 @@
 [project]
 name = "hamqth-mcp"
-version = "0.1.2"
-description = "MCP server for HamQTH.com — callsign lookup (free QRZ alternative)"
+version = "0.2.0"
+description = "MCP server for HamQTH.com — callsign lookup, DX spots, RBN, QSO verification"
 readme = "README.md"
 license = {text = "GPL-3.0-or-later"}
 authors = [{name = "Greg Beam, KI7MT"}]

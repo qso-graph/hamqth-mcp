@@ -1,4 +1,4 @@
-"""hamqth-mcp: MCP server for HamQTH.com — free callsign lookup."""
+"""hamqth-mcp: MCP server for HamQTH.com — callsign lookup, DX spots, RBN, QSO verification."""
 
 from __future__ import annotations
 
@@ -17,8 +17,9 @@ mcp = FastMCP(
     "hamqth-mcp",
     version=__version__,
     instructions=(
-        "MCP server for HamQTH.com — free callsign lookup, DXCC resolution, "
-        "biography, and recent activity. No paid subscription required."
+        "MCP server for HamQTH.com — callsign lookup, DXCC resolution, "
+        "DX cluster spots, RBN data, QSO verification, and more. "
+        "Most endpoints are public (no auth). Lookup/bio/activity need a free account."
     ),
 )
 
@@ -128,6 +129,80 @@ def hamqth_activity(persona: str, callsign: str) -> dict[str, Any]:
     """
     try:
         return _client(persona).activity(callsign)
+    except Exception as e:
+        return {"error": str(e)}
+
+
+@mcp.tool()
+def hamqth_dx_spots(
+    limit: int = 60, band: str | None = None
+) -> dict[str, Any]:
+    """Live DX cluster spots from HamQTH (public, no auth required).
+
+    Spots update every ~15 seconds. Max 200 spots per request.
+
+    Args:
+        limit: Number of spots to return (default 60, max 200).
+        band: Optional ADIF band filter (e.g., "20M", "40M").
+
+    Returns:
+        List of DX cluster spots with call, freq, band, spotter, etc.
+    """
+    try:
+        spots = _public().dx_spots(limit=limit, band=band)
+        return {"total": len(spots), "spots": spots}
+    except Exception as e:
+        return {"error": str(e)}
+
+
+@mcp.tool()
+def hamqth_rbn(
+    band: str | None = None,
+    mode: str | None = None,
+    cont: str | None = None,
+    fromcont: str | None = None,
+    age: int | None = None,
+) -> dict[str, Any]:
+    """Reverse Beacon Network spots from HamQTH (public, no auth required).
+
+    Args:
+        band: ADIF band numbers, comma-separated (e.g., "20,40").
+        mode: Filter by mode (CW, RTTY, PSK31, PSK63).
+        cont: Filter by spotted station's continent (e.g., "EU", "NA").
+        fromcont: Filter by receiver/skimmer continent.
+        age: Maximum age in seconds.
+
+    Returns:
+        List of RBN decodes with call, freq, mode, age, and listener dB values.
+    """
+    try:
+        decodes = _public().rbn(
+            band=band, mode=mode, cont=cont, fromcont=fromcont, age=age
+        )
+        return {"total": len(decodes), "decodes": decodes}
+    except Exception as e:
+        return {"error": str(e)}
+
+
+@mcp.tool()
+def hamqth_verify_qso(
+    mycall: str, hiscall: str, date: str, band: str
+) -> dict[str, Any]:
+    """Verify a QSO via HamQTH SAVP protocol (public, no auth required).
+
+    Checks if a QSO exists in HamQTH's database for both parties.
+
+    Args:
+        mycall: Your callsign (e.g., "KI7MT").
+        hiscall: Other station's callsign (e.g., "OK2CQR").
+        date: QSO date in YYYYMMDD format (e.g., "20260305").
+        band: Band (e.g., "20M", "40M").
+
+    Returns:
+        SAVP verification result with match status.
+    """
+    try:
+        return _public().verify_qso(mycall, hiscall, date, band)
     except Exception as e:
         return {"error": str(e)}
 
