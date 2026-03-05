@@ -125,19 +125,29 @@ class HamQTHClient:
         self._cache[key] = (time.monotonic() + ttl, value)
 
     def _get_xml(self, url: str) -> ET.Element:
-        """HTTP GET, return parsed XML root."""
+        """HTTP GET, return parsed XML root.
+
+        Catches all urllib exceptions to prevent credential-bearing URLs
+        from leaking through error messages (login puts password in query params).
+        """
         req = urllib.request.Request(url, method="GET")
         req.add_header("User-Agent", f"hamqth-mcp/{__version__}")
-        with urllib.request.urlopen(req, timeout=15) as resp:
-            body = resp.read().decode("utf-8", errors="replace")
+        try:
+            with urllib.request.urlopen(req, timeout=15) as resp:
+                body = resp.read().decode("utf-8", errors="replace")
+        except Exception:
+            raise RuntimeError("HamQTH request failed — check network and credentials")
         return ET.fromstring(body)
 
     def _get_json(self, url: str) -> Any:
         """HTTP GET, return parsed JSON."""
         req = urllib.request.Request(url, method="GET")
         req.add_header("User-Agent", f"hamqth-mcp/{__version__}")
-        with urllib.request.urlopen(req, timeout=15) as resp:
-            body = resp.read().decode("utf-8", errors="replace")
+        try:
+            with urllib.request.urlopen(req, timeout=15) as resp:
+                body = resp.read().decode("utf-8", errors="replace")
+        except Exception:
+            raise RuntimeError("HamQTH request failed — check network connectivity")
         return json.loads(body)
 
     def _login(self) -> str:
