@@ -98,9 +98,9 @@ _MOCK_DXCC_JSON = {
 }
 
 _MOCK_DX_CSV = (
-    "JA1XYZ^14074.0^2026-03-05 12:00:00^W1AW^FT8 -12dB^Y^N^AS^20m^Japan^339\n"
-    "VP8PJ^7074.0^2026-03-05 11:55:00^KI7MT^FT8 -08dB^N^N^SA^40m^South Shetland Islands^241\n"
-    "OK2CQR^21074.0^2026-03-05 11:50:00^DL1ABC^FT8 -15dB^Y^Y^EU^15m^Czech Republic^503\n"
+    "JA1XYZ^14074.0^W1AW^FT8 -12dB^1200 2026-03-05^Y^N^AS^20m^Japan^339\n"
+    "VP8PJ^7074.0^KI7MT^FT8 -08dB^1155 2026-03-05^N^N^SA^40m^South Shetland Islands^241\n"
+    "OK2CQR^21074.0^DL1ABC^FT8 -15dB^1150 2026-03-05^Y^Y^EU^15m^Czech Republic^503\n"
 )
 
 _MOCK_RBN_JSON = {
@@ -424,7 +424,7 @@ class HamQTHClient:
             text = self._get_text(f"{_BASE}/dxc_csv.php?{qs}")
 
         _FIELDS = (
-            "call", "freq", "datetime", "spotter", "comment",
+            "call", "freq", "spotter", "comment", "datetime",
             "lotw", "eqsl", "continent", "band", "country", "dxcc",
         )
         spots: list[dict[str, str]] = []
@@ -464,7 +464,10 @@ class HamQTHClient:
             if age is not None:
                 params["age"] = str(age)
             qs = urllib.parse.urlencode(params)
-            data = self._get_json(f"{_BASE}/rbn_data.php?{qs}")
+            try:
+                data = self._get_json(f"{_BASE}/rbn_data.php?{qs}")
+            except RuntimeError:
+                data = {}
 
         results: list[dict[str, Any]] = []
         if isinstance(data, dict):
