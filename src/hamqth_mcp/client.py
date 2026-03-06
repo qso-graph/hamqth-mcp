@@ -184,7 +184,10 @@ class HamQTHClient:
                 body = resp.read().decode("utf-8", errors="replace")
         except Exception:
             raise RuntimeError("HamQTH request failed — check network connectivity")
-        return json.loads(body)
+        try:
+            return json.loads(body)
+        except json.JSONDecodeError:
+            raise RuntimeError("HamQTH returned non-JSON response — check parameters")
 
     def _get_text(self, url: str) -> str:
         """HTTP GET, return raw text body."""

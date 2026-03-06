@@ -8,7 +8,7 @@ from typing import Any
 
 from fastmcp import FastMCP
 
-from adif_mcp.credentials import get_creds
+from adif_mcp.identity import PersonaManager
 
 from . import __version__
 from .client import HamQTHClient
@@ -31,19 +31,17 @@ def _is_mock() -> bool:
     return os.getenv("HAMQTH_MCP_MOCK") == "1"
 
 
+def _pm() -> PersonaManager:
+    return PersonaManager()
+
+
 def _client(persona: str) -> HamQTHClient:
     """Get or create an authenticated client for a persona."""
     if persona not in _clients:
         client = HamQTHClient()
         if not _is_mock():
-            creds = get_creds(persona, "hamqth")
-            if creds is None or not creds.username or not creds.password:
-                raise ValueError(
-                    f"No HamQTH credentials for persona '{persona}'. "
-                    "Set up with: adif-mcp creds set --persona <name> --provider hamqth "
-                    "--username <call> --password <pass>"
-                )
-            client.configure(creds.username, creds.password)
+            username, password = _pm().require(persona, "hamqth")
+            client.configure(username, password)
         _clients[persona] = client
     return _clients[persona]
 
