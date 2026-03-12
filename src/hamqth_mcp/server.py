@@ -133,7 +133,9 @@ def hamqth_activity(persona: str, callsign: str) -> dict[str, Any]:
 
 @mcp.tool()
 def hamqth_dx_spots(
-    limit: int = 60, band: str | None = None
+    limit: int = 60,
+    band: str | None = None,
+    call: str | None = None,
 ) -> dict[str, Any]:
     """Live DX cluster spots from HamQTH (public, no auth required).
 
@@ -142,12 +144,23 @@ def hamqth_dx_spots(
     Args:
         limit: Number of spots to return (default 60, max 200).
         band: Optional ADIF band filter (e.g., "20M", "40M").
+        call: Optional callsign filter — matches spotted call or spotter
+              (case-insensitive, e.g., "3Y0K"). Pulls max spots and filters
+              client-side since the API does not support server-side filtering.
 
     Returns:
         List of DX cluster spots with call, freq, band, spotter, etc.
     """
     try:
-        spots = _public().dx_spots(limit=limit, band=band)
+        fetch_limit = 200 if call else limit
+        spots = _public().dx_spots(limit=fetch_limit, band=band)
+        if call:
+            call_upper = call.upper()
+            spots = [
+                s for s in spots
+                if call_upper in s.get("call", "").upper()
+                or call_upper in s.get("spotter", "").upper()
+            ]
         return {"total": len(spots), "spots": spots}
     except Exception as e:
         return {"error": str(e)}
@@ -160,6 +173,7 @@ def hamqth_rbn(
     cont: str | None = None,
     fromcont: str | None = None,
     age: int | None = None,
+    call: str | None = None,
 ) -> dict[str, Any]:
     """Reverse Beacon Network spots from HamQTH (public, no auth required).
 
@@ -169,6 +183,8 @@ def hamqth_rbn(
         cont: Filter by spotted station's continent (e.g., "EU", "NA").
         fromcont: Filter by receiver/skimmer continent.
         age: Maximum age in seconds.
+        call: Optional callsign filter — matches spotted station
+              (case-insensitive, e.g., "3Y0K"). Filtered client-side.
 
     Returns:
         List of RBN decodes with call, freq, mode, age, and listener dB values.
@@ -177,6 +193,12 @@ def hamqth_rbn(
         decodes = _public().rbn(
             band=band, mode=mode, cont=cont, fromcont=fromcont, age=age
         )
+        if call:
+            call_upper = call.upper()
+            decodes = [
+                d for d in decodes
+                if call_upper in d.get("call", "").upper()
+            ]
         return {"total": len(decodes), "decodes": decodes}
     except Exception as e:
         return {"error": str(e)}
