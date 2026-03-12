@@ -1,9 +1,9 @@
 <!-- mcp-name: io.github.qso-graph/hamqth-mcp -->
 # hamqth-mcp
 
-MCP server for [HamQTH.com](https://www.hamqth.com/) — free callsign lookup, DXCC resolution, biography, and recent activity through any MCP-compatible AI assistant.
+MCP server for [HamQTH.com](https://www.hamqth.com/) — callsign lookup, DX cluster spots, Reverse Beacon Network, DXCC resolution, and more through any MCP-compatible AI assistant.
 
-Part of the [qso-graph](https://qso-graph.io/) project. Depends on [adif-mcp](https://pypi.org/project/adif-mcp/) for persona and credential management.
+Part of the [qso-graph](https://qso-graph.io/) project. Authenticated tools use [qso-graph-auth](https://pypi.org/project/qso-graph-auth/) for persona and credential management.
 
 ## Install
 
@@ -19,6 +19,9 @@ pip install hamqth-mcp
 | `hamqth_dxcc` | No | Resolve DXCC entity from callsign or ADIF code |
 | `hamqth_bio` | Yes | Fetch operator biography |
 | `hamqth_activity` | Yes | Recent DX cluster, RBN, and logbook activity |
+| `hamqth_dx_spots` | No | Live DX cluster spots — filter by band and/or callsign |
+| `hamqth_rbn` | No | Reverse Beacon Network decodes — filter by band, mode, continent, callsign |
+| `hamqth_verify_qso` | No | Verify a QSO via HamQTH SAVP protocol |
 
 ## Quick Start
 
@@ -135,6 +138,14 @@ Add to `~/.gemini/settings.json` (global) or `.gemini/settings.json` (project):
 > "Show me the biography for OK2CQR"
 
 > "What's the recent activity for KI7MT?"
+
+> "Show me DX spots for 3Y0K"
+
+> "What RBN decodes are there for 3Y0K on CW?"
+
+> "Show me 20m DX spots"
+
+> "Verify my QSO with OK2CQR on 20m on March 5"
 
 ## Testing Without Credentials
 
