@@ -290,3 +290,48 @@ class TestClientDirect:
         """HAMQTH-L2-045: Direct client verify returns dict."""
         result = client.verify_qso("KI7MT", "OK2CQR", "20260305", "20M")
         assert result["result"] == "Y"
+
+
+# ---------------------------------------------------------------------------
+# HAMQTH-L2-046..050: get_version_info — fleet identity attestation
+# ---------------------------------------------------------------------------
+
+
+class TestGetVersionInfo:
+    """Tracks IONIS-AI/ionis-devel#49 — fleet get_version_info convention."""
+
+    def test_returns_service_name(self):
+        """HAMQTH-L2-046: payload includes service_name = 'hamqth-mcp'."""
+        from hamqth_mcp.server import _version_info_payload
+
+        assert _version_info_payload()["service_name"] == "hamqth-mcp"
+
+    def test_returns_service_version(self):
+        """HAMQTH-L2-047: service_version matches package __version__."""
+        from hamqth_mcp import __version__
+        from hamqth_mcp.server import _version_info_payload
+
+        assert _version_info_payload()["service_version"] == __version__
+
+    def test_returns_spec_version(self):
+        """HAMQTH-L2-048: spec_version pins the HamQTH API contract."""
+        from hamqth_mcp.server import _version_info_payload
+
+        assert _version_info_payload()["spec_version"] == "hamqth-com-v1"
+
+    def test_payload_keys_are_required_set(self):
+        """HAMQTH-L2-049: payload has the required keys (no extras yet)."""
+        from hamqth_mcp.server import _version_info_payload
+
+        result = _version_info_payload()
+        required = {"service_name", "service_version", "spec_version"}
+        assert required.issubset(set(result.keys()))
+
+    def test_all_values_are_strings(self):
+        """HAMQTH-L2-050: all returned values are strings (JSON-safe envelope)."""
+        from hamqth_mcp.server import _version_info_payload
+
+        result = _version_info_payload()
+        for k in ("service_name", "service_version", "spec_version"):
+            assert isinstance(result[k], str), f"{k} should be str, got {type(result[k])}"
+            assert result[k], f"{k} should be non-empty"
