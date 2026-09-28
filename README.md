@@ -11,7 +11,8 @@ Part of the [qso-graph](https://qso-graph.io/) project. Authenticated tools use 
 ## Install
 
 ```bash
-pip install hamqth-mcp
+uvx hamqth-mcp            # run it; nothing to install
+pip install hamqth-mcp    # or install it into your own environment
 ```
 
 ## Tools
@@ -59,7 +60,8 @@ Add to `claude_desktop_config.json` (`~/Library/Application Support/Claude/` on 
 {
   "mcpServers": {
     "hamqth": {
-      "command": "hamqth-mcp"
+      "command": "uvx",
+      "args": ["hamqth-mcp"]
     }
   }
 }
@@ -73,7 +75,8 @@ Add to `.claude/settings.json`:
 {
   "mcpServers": {
     "hamqth": {
-      "command": "hamqth-mcp"
+      "command": "uvx",
+      "args": ["hamqth-mcp"]
     }
   }
 }
@@ -85,7 +88,8 @@ Add to `.claude/settings.json`:
 {
   "mcpServers": {
     "hamqth": {
-      "command": "hamqth-mcp"
+      "command": "uvx",
+      "args": ["hamqth-mcp"]
     }
   }
 }
@@ -99,7 +103,8 @@ Add to `.cursor/mcp.json` (project-level) or `~/.cursor/mcp.json` (global):
 {
   "mcpServers": {
     "hamqth": {
-      "command": "hamqth-mcp"
+      "command": "uvx",
+      "args": ["hamqth-mcp"]
     }
   }
 }
@@ -113,7 +118,8 @@ Add to `.vscode/mcp.json` in your workspace:
 {
   "servers": {
     "hamqth": {
-      "command": "hamqth-mcp"
+      "command": "uvx",
+      "args": ["hamqth-mcp"]
     }
   }
 }
@@ -127,11 +133,14 @@ Add to `~/.gemini/settings.json` (global) or `.gemini/settings.json` (project):
 {
   "mcpServers": {
     "hamqth": {
-      "command": "hamqth-mcp"
+      "command": "uvx",
+      "args": ["hamqth-mcp"]
     }
   }
 }
 ```
+
+Installed with pip instead? Use `"command": "hamqth-mcp"` in any config above.
 
 ### 4. Ask questions
 
@@ -174,7 +183,8 @@ Then open the MCP Inspector at `http://localhost:8005`.
 ```bash
 git clone https://github.com/qso-graph/hamqth-mcp.git
 cd hamqth-mcp
-pip install -e .
+uv sync --group dev
+uv run pytest
 ```
 
 ## License
