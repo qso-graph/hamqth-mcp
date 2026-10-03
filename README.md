@@ -12,7 +12,6 @@ Part of the [qso-graph](https://qso-graph.io/) project. Authenticated tools use 
 
 ```bash
 uvx hamqth-mcp            # run it; nothing to install
-pip install hamqth-mcp    # or install it into your own environment
 ```
 
 ## Tools
@@ -139,8 +138,6 @@ Add to `~/.gemini/settings.json` (global) or `.gemini/settings.json` (project):
   }
 }
 ```
-
-Installed with pip instead? Use `"command": "hamqth-mcp"` in any config above.
 
 ### 4. Ask questions
 
