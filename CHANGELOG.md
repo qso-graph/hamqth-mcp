@@ -5,6 +5,15 @@ All notable changes to `hamqth-mcp` are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.3] — 2026-10-04
+
+Documentation only; no code changes. Released so the PyPI page shows the corrected README.
+
+### Changed
+- README: the credential steps sent users to `pip install adif-mcp` and `adif-mcp persona …`, which no longer handle credentials. Now qso-auth: `persona add`, `provider enable`, `creds set` (#7).
+- README: Known Quirks for the 55-minute session refresh (#7).
+- README: uvx only, no pip (#6).
+
 ## [0.4.2] — 2026-09-28
 
 ### Added (CI hygiene)
