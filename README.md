@@ -35,17 +35,19 @@ Sign up at [hamqth.com](https://www.hamqth.com/) — it's free, no subscription 
 
 ### 2. Set up credentials
 
-hamqth-mcp uses adif-mcp personas for credential management:
+hamqth-mcp uses [qso-graph-auth](https://qso-graph.io/servers/qso-graph-auth/) personas for credential management:
 
 ```bash
-# Install adif-mcp if you haven't
-pip install adif-mcp
+# Install qso-graph-auth if you haven't
+uv tool install qso-graph-auth
 
-# Create a persona and add HamQTH credentials
-adif-mcp persona create ki7mt --callsign KI7MT
-adif-mcp persona provider ki7mt hamqth --username KI7MT
-adif-mcp persona secret ki7mt hamqth
+# A persona (your callsign and the dates it covers), then HamQTH for it
+qso-auth persona add --name ki7mt --callsign KI7MT --start 2020-01-01
+qso-auth provider enable ki7mt hamqth
+qso-auth creds set ki7mt hamqth      # asks for your username, then your password (hidden)
 ```
+
+All three steps are needed: without `provider enable`, the server reports that the persona has no `hamqth` ref.
 
 ### 3. Configure your MCP client
 
@@ -183,6 +185,10 @@ cd hamqth-mcp
 uv sync --group dev
 uv run pytest
 ```
+
+## Known Quirks
+
+- **Sessions:** HamQTH's XML sessions expire after an hour. The server signs in again after 55 minutes, so a long-running session never sees an expired one.
 
 ## License
 
