@@ -1,6 +1,6 @@
 [project]
 name = "hamqth-mcp"
-version = "0.4.3"
+version = "0.4.4"
 description = "MCP server for HamQTH.com — callsign lookup, DX spots, RBN, QSO verification"
 readme = "README.md"
 license = {text = "GPL-3.0-or-later"}
@@ -29,7 +29,7 @@ classifiers = [
 
 [project.urls]
 Homepage = "https://qso-graph.io"
-Documentation = "https://qso-graph.io"
+Documentation = "https://qso-graph.io/servers/hamqth/"
 Repository = "https://github.com/qso-graph/hamqth-mcp"
 Issues = "https://github.com/qso-graph/hamqth-mcp/issues"
 
