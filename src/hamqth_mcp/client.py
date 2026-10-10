@@ -85,7 +85,7 @@ _MOCK_ACTIVITY_XML = """<?xml version="1.0"?>
   </search>
 </HamQTH>"""
 
-_MOCK_DXCC_JSON = {
+_MOCK_DXCC_JSON: dict[str, Any] = {
     "callsign": "VP8PJ",
     "name": "South Shetland Islands",
     "continent": "SA",
@@ -103,7 +103,7 @@ _MOCK_DX_CSV = (
     "OK2CQR^21074.0^DL1ABC^FT8 -15dB^1150 2026-03-05^Y^Y^EU^15m^Czech Republic^503\n"
 )
 
-_MOCK_RBN_JSON = {
+_MOCK_RBN_JSON: dict[str, Any] = {
     "DL1ABC": {
         "dxcall": "DL1ABC",
         "freq": "14023.4",
@@ -195,9 +195,10 @@ class HamQTHClient:
         req.add_header("User-Agent", f"hamqth-mcp/{__version__}")
         try:
             with urllib.request.urlopen(req, timeout=15) as resp:
-                return resp.read().decode("utf-8", errors="replace")
+                body: bytes = resp.read()
         except Exception:
             raise RuntimeError("HamQTH request failed — check network connectivity")
+        return body.decode("utf-8", errors="replace")
 
     def _login(self) -> str:
         """Authenticate and return session ID."""
@@ -261,7 +262,7 @@ class HamQTHClient:
     def lookup(self, callsign: str) -> dict[str, Any]:
         """Look up a callsign."""
         key = f"lookup:{callsign.upper()}"
-        cached = self._cache_get(key)
+        cached: dict[str, Any] | None = self._cache_get(key)
         if cached is not None:
             return cached
 
@@ -330,7 +331,7 @@ class HamQTHClient:
     def dxcc(self, query: str) -> dict[str, Any]:
         """Resolve DXCC entity (public, no auth required)."""
         key = f"dxcc:{query.upper()}"
-        cached = self._cache_get(key)
+        cached: dict[str, Any] | None = self._cache_get(key)
         if cached is not None:
             return cached
 
@@ -410,7 +411,7 @@ class HamQTHClient:
     def dx_spots(self, limit: int = 60, band: str | None = None) -> list[dict[str, str]]:
         """Live DX cluster spots (public, no auth required)."""
         key = f"dx_spots:{limit}:{band}"
-        cached = self._cache_get(key)
+        cached: list[dict[str, str]] | None = self._cache_get(key)
         if cached is not None:
             return cached
 
@@ -445,7 +446,7 @@ class HamQTHClient:
     ) -> list[dict[str, Any]]:
         """Reverse Beacon Network data (public, no auth required)."""
         key = f"rbn:{band}:{mode}:{cont}:{fromcont}:{age}"
-        cached = self._cache_get(key)
+        cached: list[dict[str, Any]] | None = self._cache_get(key)
         if cached is not None:
             return cached
 
@@ -493,7 +494,7 @@ class HamQTHClient:
     ) -> dict[str, str]:
         """Verify a QSO via SAVP protocol (public, no auth required)."""
         key = f"verify:{mycall.upper()}:{hiscall.upper()}:{date}:{band.upper()}"
-        cached = self._cache_get(key)
+        cached: dict[str, str] | None = self._cache_get(key)
         if cached is not None:
             return cached
 
