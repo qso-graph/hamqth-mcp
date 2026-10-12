@@ -208,7 +208,7 @@ class HamQTHClient:
         params = urllib.parse.urlencode({
             "u": self._username,
             "p": self._password,
-            "prg": "adif-mcp",
+            "prg": "hamqth-mcp",
         })
         root = self._get_xml(f"{_BASE}/xml.php?{params}")
 
@@ -237,7 +237,7 @@ class HamQTHClient:
         """Make an authenticated XML request. Re-login on session expiry."""
         sid = self._ensure_session()
         params["id"] = sid
-        params["prg"] = "adif-mcp"
+        params["prg"] = "hamqth-mcp"
         qs = urllib.parse.urlencode(params)
         root = self._get_xml(f"{_BASE}/{endpoint}?{qs}")
 
@@ -273,7 +273,10 @@ class HamQTHClient:
 
         search = root.find(f".//{{{_NS}}}search")
         if search is None:
-            return {"callsign": callsign.upper(), "error": "Not found"}
+            # Raised, not returned: this was already a failure, said in a
+            # payload the protocol could not see. A caller could not tell "no
+            # such callsign" from the callsign's details.
+            raise LookupError(f"HamQTH has no record for {callsign.upper()}.")
 
         def _text(tag: str) -> str:
             el = search.find(f"{{{_NS}}}{tag}")
@@ -342,7 +345,10 @@ class HamQTHClient:
             data = self._get_json(f"{_BASE}/dxcc_json.php?{params}")
 
         if not data or "error" in data:
-            return {"query": query.upper(), "error": data.get("error", "Not found") if data else "Not found"}
+            # HamQTH's own error text where it gave one, so the reason
+            # reaches the caller rather than a generic "Not found".
+            reason = data.get("error", "Not found") if data else "Not found"
+            raise LookupError(f"HamQTH DXCC lookup for {query.upper()}: {reason}")
 
         rec = {
             "callsign": data.get("callsign", query.upper()),
