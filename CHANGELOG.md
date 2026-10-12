@@ -5,7 +5,15 @@ All notable changes to `hamqth-mcp` are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.5.0] — 2026-10-12
+
+**Upgrading:** a tool that fails now returns `isError: true` instead of a successful result whose
+payload contained an `error` key. Anything reading `result["error"]` should read the error flag.
+No decision changed — an empty DX spot feed is still a successful answer with `total: 0`.
+
+**Also in this release:** the `prg` parameter sent to HamQTH said `adif-mcp` and now says
+`hamqth-mcp`, so HamQTH's operator sees this server's traffic under its own name.
+
 
 - **`E501` is adopted** (#23, qso-graph-devel#70). It was deliberately ignored while the rules that
   find defects went in first; this is the pass of its own that deferral was waiting for. It reported
