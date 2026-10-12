@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **`certifi` is carried, and all three fetch paths verify against it** (#22, qso-graph-devel#73).
+  They used `urllib` with no context, so they trusted whichever root store the running Python was
+  built against. On macOS that is `/etc/ssl/cert.pem`, a deliberately *reduced* OpenSSL file — 128
+  roots against the system keychain's 158, and current rather than stale. **hamqth.com verifies
+  fine against it today**, so this was latent rather than an outage.
+- **It matters more here than in the rest of the sweep: the operator's password travels over these
+  connections**, in query parameters, because that is how HamQTH's login works. Everywhere else a
+  trust problem costs an answer; here the connection carrying a secret is the one being verified.
+  Which is also why verification is never disabled — `ssl.CERT_NONE` would make a failing call
+  "work" by accepting any certificate from anyone, and on this server that means handing the
+  password to whoever presented it.
+- Three static checks hold this in `test_security.py` and two runtime ones in `test_tools.py`,
+  split that way because the release gate runs the first file with the package **not installed**.
+  The "every `urlopen` passes the context" check earns its keep here: there are **three** fetch
+  helpers, and adding a context to the one being edited while leaving a sibling behind is exactly
+  the mistake it catches.
+- **`tests/test_release_gate.py`** asserts that precondition rather than leaving it to be
+  remembered: the gate suite may import nothing but the standard library and pytest. solar-mcp's
+  0.3.0 publish failed on exactly that, from the same change.
+
 - **Tool execution errors are flagged `isError`** (#24). Every tool returned `{"error": "..."}` on
   failure, which reaches a client as a *successful* call whose payload happens to contain the word
   "error". They now raise `ToolError`, which `fastmcp` reports as `isError: true` with the message

@@ -4,16 +4,49 @@ from __future__ import annotations
 
 import json
 import os
+import ssl
 import threading
 import time
 import urllib.parse
 import urllib.request
 import xml.etree.ElementTree as ET
+from functools import cache
 from typing import Any
+
+import certifi
 
 from . import __version__
 
 _BASE = "https://www.hamqth.com"
+
+
+@cache
+def _context() -> ssl.SSLContext:
+    """A verifying context with a current root set. Built once.
+
+    The roots come from ``certifi`` rather than whichever store the running
+    Python was built against. On macOS that distinction is real: Apple ships
+    ``/etc/ssl/cert.pem`` for OpenSSL — and therefore for Python — as a
+    deliberately *reduced* file, 128 roots against the system keychain's 158.
+    It is current, not stale. But a certificate chaining to one of the 30 it
+    omits fails for Python while ``curl`` to the same URL succeeds
+    (qso-graph-devel#73, found when meteor-mcp could not reach NASA at all).
+
+    hamqth.com verifies fine against the reduced file today, so this is a
+    latent defect rather than an outage. It matters more here than in the other
+    servers in this sweep: **the operator's password travels over this
+    connection**, in query parameters, because that is how HamQTH's login
+    works. Everywhere else a trust problem costs an answer; here the connection
+    carrying a secret is the one being verified.
+
+    Which is also why verification is never disabled. ``ssl.CERT_NONE`` or
+    ``check_hostname = False`` would make a failing call "work" by accepting
+    any certificate from anyone — and on this server that means handing the
+    password to whoever presented it. The fix is a complete root set, not a
+    relaxed check.
+    """
+    return ssl.create_default_context(cafile=certifi.where())
+
 _NS = "https://www.hamqth.com"  # XML namespace
 
 # Session TTL: re-auth after 55 min (5-min safety margin on 1-hour expiry)
@@ -169,7 +202,7 @@ class HamQTHClient:
         req = urllib.request.Request(url, method="GET")
         req.add_header("User-Agent", f"hamqth-mcp/{__version__}")
         try:
-            with urllib.request.urlopen(req, timeout=15) as resp:
+            with urllib.request.urlopen(req, timeout=15, context=_context()) as resp:
                 body = resp.read().decode("utf-8", errors="replace")
         except Exception:
             raise RuntimeError("HamQTH request failed — check network and credentials")
@@ -180,7 +213,7 @@ class HamQTHClient:
         req = urllib.request.Request(url, method="GET")
         req.add_header("User-Agent", f"hamqth-mcp/{__version__}")
         try:
-            with urllib.request.urlopen(req, timeout=15) as resp:
+            with urllib.request.urlopen(req, timeout=15, context=_context()) as resp:
                 body = resp.read().decode("utf-8", errors="replace")
         except Exception:
             raise RuntimeError("HamQTH request failed — check network connectivity")
@@ -194,7 +227,7 @@ class HamQTHClient:
         req = urllib.request.Request(url, method="GET")
         req.add_header("User-Agent", f"hamqth-mcp/{__version__}")
         try:
-            with urllib.request.urlopen(req, timeout=15) as resp:
+            with urllib.request.urlopen(req, timeout=15, context=_context()) as resp:
                 body: bytes = resp.read()
         except Exception:
             raise RuntimeError("HamQTH request failed — check network connectivity")
