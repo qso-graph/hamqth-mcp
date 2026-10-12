@@ -5,6 +5,73 @@ All notable changes to `hamqth-mcp` are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.0] — 2026-10-12
+
+**Upgrading:** a tool that fails now returns `isError: true` instead of a successful result whose
+payload contained an `error` key. Anything reading `result["error"]` should read the error flag.
+No decision changed — an empty DX spot feed is still a successful answer with `total: 0`.
+
+**Also in this release:** the `prg` parameter sent to HamQTH said `adif-mcp` and now says
+`hamqth-mcp`, so HamQTH's operator sees this server's traffic under its own name.
+
+
+- **`E501` is adopted** (#23, qso-graph-devel#70). It was deliberately ignored while the rules that
+  find defects went in first; this is the pass of its own that deferral was waiting for. It reported
+  **five lines, none of them a defect**, and all five reflowed with no name shortened — **no
+  exemption was needed**, so this repo carries no `noqa` at all.
+- One line removed that was not formatting, and is called out rather than slipped in: a
+  `monkeypatch.setattr` in `test_mcp_conformance.py` patched `require` on a freshly built
+  `PersonaManager` that the next line then discarded, so it had never done anything. It was added
+  with #24 two PRs ago. The test it belongs to still passes without it, which is the proof it was
+  dead.
+
+- **`certifi` is carried, and all three fetch paths verify against it** (#22, qso-graph-devel#73).
+  They used `urllib` with no context, so they trusted whichever root store the running Python was
+  built against. On macOS that is `/etc/ssl/cert.pem`, a deliberately *reduced* OpenSSL file — 128
+  roots against the system keychain's 158, and current rather than stale. **hamqth.com verifies
+  fine against it today**, so this was latent rather than an outage.
+- **It matters more here than in the rest of the sweep: the operator's password travels over these
+  connections**, in query parameters, because that is how HamQTH's login works. Everywhere else a
+  trust problem costs an answer; here the connection carrying a secret is the one being verified.
+  Which is also why verification is never disabled — `ssl.CERT_NONE` would make a failing call
+  "work" by accepting any certificate from anyone, and on this server that means handing the
+  password to whoever presented it.
+- Three static checks hold this in `test_security.py` and two runtime ones in `test_tools.py`,
+  split that way because the release gate runs the first file with the package **not installed**.
+  The "every `urlopen` passes the context" check earns its keep here: there are **three** fetch
+  helpers, and adding a context to the one being edited while leaving a sibling behind is exactly
+  the mistake it catches.
+- **`tests/test_release_gate.py`** asserts that precondition rather than leaving it to be
+  remembered: the gate suite may import nothing but the standard library and pytest. solar-mcp's
+  0.3.0 publish failed on exactly that, from the same change.
+
+- **Tool execution errors are flagged `isError`** (#24). Every tool returned `{"error": "..."}` on
+  failure, which reaches a client as a *successful* call whose payload happens to contain the word
+  "error". They now raise `ToolError`, which `fastmcp` reports as `isError: true` with the message
+  intact. **No decision changed — only how it is reported.** An unknown callsign is a failed
+  lookup; an empty DX spot feed is still a successful answer with `total: 0`.
+- **The credential cannot reach the client through an error, and that is now asserted.** This is
+  the first server in the sweep holding the operator's HamQTH username and password, and HamQTH's
+  login puts the password in query parameters. The client has always caught every fetch exception
+  and raised a fixed message so a credential-bearing URL could not leak — but until now that
+  message sat in a payload; it is now the failure text a client reads. Two tests drive a sentinel
+  secret through a network failure and through HamQTH's own login rejection and assert it never
+  appears. HamQTH's "Wrong user name or password" *is* passed on, because that is what a model
+  should see; the password that was wrong is not.
+- **Every tool declares all four annotation hints** (#24). All eight are read-only,
+  non-destructive and idempotent; `openWorldHint` is true for the seven that reach hamqth.com —
+  three with the operator's credentials, four on public endpoints — and false for
+  `get_version_info`. A test asserts the hints say nothing about which tools use a credential:
+  the specification fixes what the four hints mean, and requires clients to treat them as
+  untrusted, so a security-relevant claim does not belong there.
+- **Fixed: this server told HamQTH it was `adif-mcp`.** The `prg` parameter was hard-coded to
+  `"adif-mcp"` in both the login and the query path, so HamQTH's operator saw our traffic
+  attributed to a different project. It now sends `hamqth-mcp`.
+- **`tests/test_mcp_conformance.py`** asserts all of the above.
+- Measured while doing it: issue #24 states 16 error dicts in `src/`; there were **9** — 7 in
+  `server.py` and 2 in `client.py`. Fifth repo in the sweep where the stated count ran to
+  roughly double the real one, so it is an upper bound rather than a target.
+
 ## [0.4.6] — 2026-10-11
 
 - **ruff and mypy run in CI** (qso-graph-devel#66), as a job the `ci-all-green` gate requires.

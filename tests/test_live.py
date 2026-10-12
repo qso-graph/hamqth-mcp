@@ -48,7 +48,8 @@ def test_dxcc_live(client):
     result = client.dxcc("W1AW")
     assert "error" not in result, f"DXCC lookup failed: {result}"
     assert result.get("name"), "Missing entity name"
-    assert str(result.get("dxcc")) == "291", f"Expected DXCC 291 (United States), got {result.get('dxcc')}"
+    assert str(result.get("dxcc")) == "291", \
+        f"Expected DXCC 291 (United States), got {result.get('dxcc')}"
     assert result.get("continent"), "Missing continent"
 
 

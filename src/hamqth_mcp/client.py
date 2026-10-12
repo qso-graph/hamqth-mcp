@@ -4,16 +4,49 @@ from __future__ import annotations
 
 import json
 import os
+import ssl
 import threading
 import time
 import urllib.parse
 import urllib.request
 import xml.etree.ElementTree as ET
+from functools import cache
 from typing import Any
+
+import certifi
 
 from . import __version__
 
 _BASE = "https://www.hamqth.com"
+
+
+@cache
+def _context() -> ssl.SSLContext:
+    """A verifying context with a current root set. Built once.
+
+    The roots come from ``certifi`` rather than whichever store the running
+    Python was built against. On macOS that distinction is real: Apple ships
+    ``/etc/ssl/cert.pem`` for OpenSSL — and therefore for Python — as a
+    deliberately *reduced* file, 128 roots against the system keychain's 158.
+    It is current, not stale. But a certificate chaining to one of the 30 it
+    omits fails for Python while ``curl`` to the same URL succeeds
+    (qso-graph-devel#73, found when meteor-mcp could not reach NASA at all).
+
+    hamqth.com verifies fine against the reduced file today, so this is a
+    latent defect rather than an outage. It matters more here than in the other
+    servers in this sweep: **the operator's password travels over this
+    connection**, in query parameters, because that is how HamQTH's login
+    works. Everywhere else a trust problem costs an answer; here the connection
+    carrying a secret is the one being verified.
+
+    Which is also why verification is never disabled. ``ssl.CERT_NONE`` or
+    ``check_hostname = False`` would make a failing call "work" by accepting
+    any certificate from anyone — and on this server that means handing the
+    password to whoever presented it. The fix is a complete root set, not a
+    relaxed check.
+    """
+    return ssl.create_default_context(cafile=certifi.where())
+
 _NS = "https://www.hamqth.com"  # XML namespace
 
 # Session TTL: re-auth after 55 min (5-min safety margin on 1-hour expiry)
@@ -169,7 +202,7 @@ class HamQTHClient:
         req = urllib.request.Request(url, method="GET")
         req.add_header("User-Agent", f"hamqth-mcp/{__version__}")
         try:
-            with urllib.request.urlopen(req, timeout=15) as resp:
+            with urllib.request.urlopen(req, timeout=15, context=_context()) as resp:
                 body = resp.read().decode("utf-8", errors="replace")
         except Exception:
             raise RuntimeError("HamQTH request failed — check network and credentials")
@@ -180,7 +213,7 @@ class HamQTHClient:
         req = urllib.request.Request(url, method="GET")
         req.add_header("User-Agent", f"hamqth-mcp/{__version__}")
         try:
-            with urllib.request.urlopen(req, timeout=15) as resp:
+            with urllib.request.urlopen(req, timeout=15, context=_context()) as resp:
                 body = resp.read().decode("utf-8", errors="replace")
         except Exception:
             raise RuntimeError("HamQTH request failed — check network connectivity")
@@ -194,7 +227,7 @@ class HamQTHClient:
         req = urllib.request.Request(url, method="GET")
         req.add_header("User-Agent", f"hamqth-mcp/{__version__}")
         try:
-            with urllib.request.urlopen(req, timeout=15) as resp:
+            with urllib.request.urlopen(req, timeout=15, context=_context()) as resp:
                 body: bytes = resp.read()
         except Exception:
             raise RuntimeError("HamQTH request failed — check network connectivity")
@@ -208,7 +241,7 @@ class HamQTHClient:
         params = urllib.parse.urlencode({
             "u": self._username,
             "p": self._password,
-            "prg": "adif-mcp",
+            "prg": "hamqth-mcp",
         })
         root = self._get_xml(f"{_BASE}/xml.php?{params}")
 
@@ -233,11 +266,13 @@ class HamQTHClient:
                 return self._session_id
         return self._login()
 
-    def _xml_request(self, endpoint: str, params: dict[str, str], retry: bool = True) -> ET.Element:
+    def _xml_request(
+        self, endpoint: str, params: dict[str, str], retry: bool = True,
+    ) -> ET.Element:
         """Make an authenticated XML request. Re-login on session expiry."""
         sid = self._ensure_session()
         params["id"] = sid
-        params["prg"] = "adif-mcp"
+        params["prg"] = "hamqth-mcp"
         qs = urllib.parse.urlencode(params)
         root = self._get_xml(f"{_BASE}/{endpoint}?{qs}")
 
@@ -273,7 +308,10 @@ class HamQTHClient:
 
         search = root.find(f".//{{{_NS}}}search")
         if search is None:
-            return {"callsign": callsign.upper(), "error": "Not found"}
+            # Raised, not returned: this was already a failure, said in a
+            # payload the protocol could not see. A caller could not tell "no
+            # such callsign" from the callsign's details.
+            raise LookupError(f"HamQTH has no record for {callsign.upper()}.")
 
         def _text(tag: str) -> str:
             el = search.find(f"{{{_NS}}}{tag}")
@@ -342,7 +380,10 @@ class HamQTHClient:
             data = self._get_json(f"{_BASE}/dxcc_json.php?{params}")
 
         if not data or "error" in data:
-            return {"query": query.upper(), "error": data.get("error", "Not found") if data else "Not found"}
+            # HamQTH's own error text where it gave one, so the reason
+            # reaches the caller rather than a generic "Not found".
+            reason = data.get("error", "Not found") if data else "Not found"
+            raise LookupError(f"HamQTH DXCC lookup for {query.upper()}: {reason}")
 
         rec = {
             "callsign": data.get("callsign", query.upper()),
@@ -378,7 +419,8 @@ class HamQTHClient:
         call_el = bio_el.find(f"{{{_NS}}}callsign")
         text_el = bio_el.find(f"{{{_NS}}}bio")
         return {
-            "callsign": (call_el.text or callsign).strip().upper() if call_el is not None else callsign.upper(),
+            "callsign": ((call_el.text or callsign).strip().upper()
+                         if call_el is not None else callsign.upper()),
             "bio": (text_el.text or "").strip() if text_el is not None else None,
         }
 
