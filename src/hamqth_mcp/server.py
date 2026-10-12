@@ -7,6 +7,7 @@ import sys
 from typing import Any
 
 from fastmcp import FastMCP
+from fastmcp.exceptions import ToolError
 from qso_graph_auth.identity import PersonaManager
 
 from . import __spec_version__, __version__
@@ -57,6 +58,38 @@ def _public() -> HamQTHClient:
 # Tools
 # ---------------------------------------------------------------------------
 
+# MCP 2026-07-28 tool annotations. The defaults are pessimistic — a tool that
+# declares nothing is advertised as destructive, non-idempotent and open-world,
+# and the specification tells a client to keep a human in the loop for an
+# operation like that. So a client would be entitled to put a confirmation
+# prompt in front of looking up a callsign. Every tool here reads and none
+# writes, so the three effect hints are the same for all of them.
+#
+# openWorldHint is true for the seven that reach hamqth.com — three of them
+# with the operator's credentials, four on public endpoints — and false only
+# for get_version_info, which reports what the wheel carries.
+#
+# They are a client's UX hint and never a security control: the specification
+# requires clients to treat them as untrusted. In particular, nothing here
+# tells a client that three of these tools use a stored credential; that is not
+# what annotations are for, and it is not a substitute for the keyring.
+_READS_HAMQTH = {
+    "readOnlyHint": True,
+    "destructiveHint": False,
+    "idempotentHint": True,
+    "openWorldHint": True,
+}
+_ANSWERS_FROM_THE_PACKAGE = {
+    "readOnlyHint": True,
+    "destructiveHint": False,
+    "idempotentHint": True,
+    # Reports versions carried in the wheel. It opens no connection and reads
+    # no credential.
+    "openWorldHint": False,
+}
+
+
+
 
 def _version_info_payload() -> dict[str, Any]:
     """Build the version info envelope. Pulled into a helper so tests can
@@ -68,7 +101,7 @@ def _version_info_payload() -> dict[str, Any]:
     }
 
 
-@mcp.tool()
+@mcp.tool(annotations=_ANSWERS_FROM_THE_PACKAGE)
 def get_version_info() -> dict[str, Any]:
     """Get hamqth-mcp service version and upstream HamQTH API version.
 
@@ -83,7 +116,7 @@ def get_version_info() -> dict[str, Any]:
     return _version_info_payload()
 
 
-@mcp.tool()
+@mcp.tool(annotations=_READS_HAMQTH)
 def hamqth_lookup(persona: str, callsign: str) -> dict[str, Any]:
     """Look up a callsign on HamQTH (free, no subscription required).
 
@@ -100,10 +133,10 @@ def hamqth_lookup(persona: str, callsign: str) -> dict[str, Any]:
     try:
         return _client(persona).lookup(callsign)
     except Exception as e:
-        return {"error": str(e)}
+        raise ToolError(str(e)) from e
 
 
-@mcp.tool()
+@mcp.tool(annotations=_READS_HAMQTH)
 def hamqth_dxcc(query: str) -> dict[str, Any]:
     """Resolve a DXCC entity from a callsign or ADIF entity code.
 
@@ -118,10 +151,10 @@ def hamqth_dxcc(query: str) -> dict[str, Any]:
     try:
         return _public().dxcc(query)
     except Exception as e:
-        return {"error": str(e)}
+        raise ToolError(str(e)) from e
 
 
-@mcp.tool()
+@mcp.tool(annotations=_READS_HAMQTH)
 def hamqth_bio(persona: str, callsign: str) -> dict[str, Any]:
     """Fetch an operator's biography from HamQTH.
 
@@ -135,10 +168,10 @@ def hamqth_bio(persona: str, callsign: str) -> dict[str, Any]:
     try:
         return _client(persona).bio(callsign)
     except Exception as e:
-        return {"error": str(e)}
+        raise ToolError(str(e)) from e
 
 
-@mcp.tool()
+@mcp.tool(annotations=_READS_HAMQTH)
 def hamqth_activity(persona: str, callsign: str) -> dict[str, Any]:
     """Get recent DX cluster, RBN, and logbook activity for a callsign.
 
@@ -152,10 +185,10 @@ def hamqth_activity(persona: str, callsign: str) -> dict[str, Any]:
     try:
         return _client(persona).activity(callsign)
     except Exception as e:
-        return {"error": str(e)}
+        raise ToolError(str(e)) from e
 
 
-@mcp.tool()
+@mcp.tool(annotations=_READS_HAMQTH)
 def hamqth_dx_spots(
     limit: int = 60,
     band: str | None = None,
@@ -187,10 +220,10 @@ def hamqth_dx_spots(
             ]
         return {"total": len(spots), "spots": spots}
     except Exception as e:
-        return {"error": str(e)}
+        raise ToolError(str(e)) from e
 
 
-@mcp.tool()
+@mcp.tool(annotations=_READS_HAMQTH)
 def hamqth_rbn(
     band: str | None = None,
     mode: str | None = None,
@@ -225,10 +258,10 @@ def hamqth_rbn(
             ]
         return {"total": len(decodes), "decodes": decodes}
     except Exception as e:
-        return {"error": str(e)}
+        raise ToolError(str(e)) from e
 
 
-@mcp.tool()
+@mcp.tool(annotations=_READS_HAMQTH)
 def hamqth_verify_qso(
     mycall: str, hiscall: str, date: str, band: str
 ) -> dict[str, Any]:
@@ -248,7 +281,7 @@ def hamqth_verify_qso(
     try:
         return _public().verify_qso(mycall, hiscall, date, band)
     except Exception as e:
-        return {"error": str(e)}
+        raise ToolError(str(e)) from e
 
 
 # ---------------------------------------------------------------------------
