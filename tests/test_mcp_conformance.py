@@ -183,8 +183,10 @@ class TestToolErrorsAreFlagged:
 
         monkeypatch.delenv("HAMQTH_MCP_MOCK", raising=False)
         monkeypatch.setattr(server, "_clients", {})
-        monkeypatch.setattr(server._pm(), "require", no_creds, raising=False)
-        monkeypatch.setattr(server, "_pm", lambda: type("PM", (), {"require": staticmethod(no_creds)})())
+        monkeypatch.setattr(
+            server, "_pm",
+            lambda: type("PM", (), {"require": staticmethod(no_creds)})(),
+        )
         with pytest.raises(ToolError, match="qso-auth creds set"):
             _call("hamqth_lookup")(persona="nosuch", callsign="KI7MT")
 
