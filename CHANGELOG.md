@@ -30,6 +30,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `"adif-mcp"` in both the login and the query path, so HamQTH's operator saw our traffic
   attributed to a different project. It now sends `hamqth-mcp`.
 - **`tests/test_mcp_conformance.py`** asserts all of the above.
+- Measured while doing it: issue #24 states 16 error dicts in `src/`; there were **9** — 7 in
+  `server.py` and 2 in `client.py`. Fifth repo in the sweep where the stated count ran to
+  roughly double the real one, so it is an upper bound rather than a target.
 
 ## [0.4.6] — 2026-10-11
 
