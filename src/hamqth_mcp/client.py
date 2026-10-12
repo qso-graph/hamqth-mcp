@@ -266,7 +266,9 @@ class HamQTHClient:
                 return self._session_id
         return self._login()
 
-    def _xml_request(self, endpoint: str, params: dict[str, str], retry: bool = True) -> ET.Element:
+    def _xml_request(
+        self, endpoint: str, params: dict[str, str], retry: bool = True,
+    ) -> ET.Element:
         """Make an authenticated XML request. Re-login on session expiry."""
         sid = self._ensure_session()
         params["id"] = sid
@@ -417,7 +419,8 @@ class HamQTHClient:
         call_el = bio_el.find(f"{{{_NS}}}callsign")
         text_el = bio_el.find(f"{{{_NS}}}bio")
         return {
-            "callsign": (call_el.text or callsign).strip().upper() if call_el is not None else callsign.upper(),
+            "callsign": ((call_el.text or callsign).strip().upper()
+                         if call_el is not None else callsign.upper()),
             "bio": (text_el.text or "").strip() if text_el is not None else None,
         }
 
