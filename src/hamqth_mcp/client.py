@@ -15,7 +15,7 @@ from typing import Any
 
 import certifi
 
-from . import __version__
+from . import __version__, ratelimit
 
 _BASE = "https://www.hamqth.com"
 
@@ -201,6 +201,7 @@ class HamQTHClient:
         """
         req = urllib.request.Request(url, method="GET")
         req.add_header("User-Agent", f"hamqth-mcp/{__version__}")
+        ratelimit.wait()
         try:
             with urllib.request.urlopen(req, timeout=15, context=_context()) as resp:
                 body = resp.read().decode("utf-8", errors="replace")
@@ -212,6 +213,7 @@ class HamQTHClient:
         """HTTP GET, return parsed JSON."""
         req = urllib.request.Request(url, method="GET")
         req.add_header("User-Agent", f"hamqth-mcp/{__version__}")
+        ratelimit.wait()
         try:
             with urllib.request.urlopen(req, timeout=15, context=_context()) as resp:
                 body = resp.read().decode("utf-8", errors="replace")
@@ -226,6 +228,7 @@ class HamQTHClient:
         """HTTP GET, return raw text body."""
         req = urllib.request.Request(url, method="GET")
         req.add_header("User-Agent", f"hamqth-mcp/{__version__}")
+        ratelimit.wait()
         try:
             with urllib.request.urlopen(req, timeout=15, context=_context()) as resp:
                 body: bytes = resp.read()
