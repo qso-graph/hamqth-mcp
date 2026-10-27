@@ -205,8 +205,8 @@ class HamQTHClient:
         """
         req = urllib.request.Request(url, method="GET")
         req.add_header("User-Agent", f"hamqth-mcp/{__version__}")
-        ratelimit.wait()
         try:
+            ratelimit.wait(url)
             with urllib.request.urlopen(req, timeout=15, context=_context()) as resp:
                 body: bytes = resp.read()
         except urllib.error.HTTPError as exc:
@@ -217,7 +217,7 @@ class HamQTHClient:
             # outage and falls through.
             if exc.code == 429 or (exc.code == 503 and exc.headers.get("Retry-After")):
                 raise ratelimit.RateLimited(
-                    ratelimit.block(exc.headers.get("Retry-After"))
+                    ratelimit.block(url, exc.headers.get("Retry-After"))
                 ) from None
             raise RuntimeError(failure) from None
         except ratelimit.RateLimited:

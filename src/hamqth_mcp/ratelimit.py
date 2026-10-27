@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import threading
 import time
+import urllib.parse
 from typing import Final
 
 # Seconds between outbound requests.
@@ -25,8 +26,17 @@ from typing import Final
 # there is none.
 MIN_INTERVAL: Final[float] = 0.2
 
+
+# State is keyed by host, not shared across all of them.
+#
+# Spacing and a 429 are both one provider's business. This module is reached
+# from calls to more than one host in some servers, and a global block there
+# would mean a 429 from one service silencing a different, healthy one for up to
+# an hour -- a working tool broken by an unrelated provider's limit. So a host
+# gets its own gap and its own block.
 _lock = threading.Lock()
-_last: float = 0.0
+_last: dict[str, float] = {}
+_blocked_until: dict[str, float] = {}
 
 
 class RateLimited(RuntimeError):
@@ -37,38 +47,53 @@ class RateLimited(RuntimeError):
     way.
     """
 
-    def __init__(self, wait_seconds: float) -> None:
+    def __init__(self, wait_seconds: float, host: str = "") -> None:
         self.retry_after = max(1, round(wait_seconds))
+        self.host = host
+        who = host or "the service"
         super().__init__(
-            "HamQTH is rate limiting this client; try again in "
+            f"{who} is rate limiting this client; try again in "
             f"{self.retry_after} s"
         )
 
 
-def wait() -> None:
-    """Block until MIN_INTERVAL has passed since the previous request.
+def host_of(url: str) -> str:
+    """The host a URL addresses, lower-cased, or "" if it has none.
+
+    Used as the state key. A URL that cannot be parsed shares the ""
+    bucket rather than escaping the limits, because the failure mode to avoid
+    is sending the request, not mis-labelling it.
+    """
+    try:
+        return urllib.parse.urlsplit(url).hostname or ""
+    except ValueError:
+        return ""
+
+
+def wait(url: str) -> None:
+    """Block until MIN_INTERVAL has passed since the previous request to this host.
 
     Held across threads by one lock, so concurrent tool calls queue rather than
     each measuring their own gap and all firing at once.
 
-    Raises RateLimited if HamQTH has told us to stop and the interval it
+    Raises RateLimited if this host has told us to stop and the interval it
     asked for has not passed. It does not sleep through that wait: an MCP server
     answers a synchronous tool call behind a client timeout, so waiting out an
     hour inside one is a hang rather than restraint. It refuses, and the message
     says when to come back.
     """
-    global _last
+    host = host_of(url)
     with _lock:
-        remaining = _blocked_until - time.monotonic()
+        remaining = _blocked_until.get(host, 0.0) - time.monotonic()
         if remaining > 0:
-            raise RateLimited(remaining)
-        elapsed = time.monotonic() - _last
+            raise RateLimited(remaining, host)
+        elapsed = time.monotonic() - _last.get(host, 0.0)
         if elapsed < MIN_INTERVAL:
             time.sleep(MIN_INTERVAL - elapsed)
-        _last = time.monotonic()
+        _last[host] = time.monotonic()
 
 
-# --- what to do when HamQTH says stop ---------------------------------
+# --- what to do when a provider says stop ---------------------------------
 #
 # A 429 carrying Retry-After is the provider stating its limit outright, and it
 # is the most explicit form of the stated limit guarantee 8 requires honouring.
@@ -78,15 +103,13 @@ def wait() -> None:
 MIN_BACKOFF: Final[float] = 60.0
 MAX_BACKOFF: Final[float] = 3600.0
 
-_blocked_until: float = 0.0
-
 
 def retry_after(header: str | None) -> float:
     """Seconds to wait, from a Retry-After header, clamped to our bounds.
 
     Retry-After may also be an HTTP date. That form is not parsed and falls back
     to the floor rather than guessing, because a wrong parse would either hammer
-    HamQTH or strand the user.
+    the provider or strand the user.
     """
     try:
         seconds = float(header) if header else 0.0
@@ -95,23 +118,23 @@ def retry_after(header: str | None) -> float:
     return min(max(seconds, MIN_BACKOFF), MAX_BACKOFF)
 
 
-def block(header: str | None) -> float:
-    """Honour a 429: stop sending for the interval it asked for.
+def block(url: str, header: str | None) -> float:
+    """Honour a 429: stop sending to this host for the interval it asked for.
 
     Returns that interval, for the error the caller raises. It covers every
-    endpoint, because a limit is HamQTH's view of this client and not of one
-    path.
+    path on the host, because a limit is the provider's view of this client and
+    not of one URL -- and only that host, because it is not a view of anybody
+    else's service.
     """
-    global _blocked_until
     seconds = retry_after(header)
+    host = host_of(url)
     with _lock:
-        _blocked_until = time.monotonic() + seconds
+        _blocked_until[host] = time.monotonic() + seconds
     return seconds
 
 
 def clear() -> None:
-    """Forget the block. For tests, which share this module's state."""
-    global _blocked_until, _last
+    """Forget every gap and block. For tests, which share this module's state."""
     with _lock:
-        _blocked_until = 0.0
-        _last = 0.0
+        _last.clear()
+        _blocked_until.clear()
