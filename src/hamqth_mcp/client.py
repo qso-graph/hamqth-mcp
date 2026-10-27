@@ -528,6 +528,16 @@ class HamQTHClient:
             qs = urllib.parse.urlencode(params)
             try:
                 data = self._get_json(f"{_BASE}/rbn_data.php?{qs}")
+            except ratelimit.RateLimited:
+                # Ahead of the clause below, which exists so an RBN outage
+                # answers "no decodes" rather than failing the tool. A rate
+                # limit must not take that path: it would cache an empty
+                # result and tell the user there were no decodes, when what
+                # happened is that we were told to stop and nobody looked.
+                # That is wrong data presented as right -- the failure the
+                # isError guarantee exists to prevent -- and RateLimited is a
+                # RuntimeError, so it reached here without this.
+                raise
             except RuntimeError:
                 data = {}
 
