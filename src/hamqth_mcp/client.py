@@ -7,6 +7,7 @@ import os
 import ssl
 import threading
 import time
+import urllib.error
 import urllib.parse
 import urllib.request
 import xml.etree.ElementTree as ET
@@ -15,7 +16,7 @@ from typing import Any
 
 import certifi
 
-from . import __version__
+from . import __version__, ratelimit
 
 _BASE = "https://www.hamqth.com"
 
@@ -193,30 +194,53 @@ class HamQTHClient:
     def _cache_set(self, key: str, value: Any, ttl: float) -> None:
         self._cache[key] = (time.monotonic() + ttl, value)
 
-    def _get_xml(self, url: str) -> ET.Element:
-        """HTTP GET, return parsed XML root.
+    def _fetch(self, url: str, failure: str) -> bytes:
+        """The one outbound path, so the request limits have one home.
 
-        Catches all urllib exceptions to prevent credential-bearing URLs
-        from leaking through error messages (login puts password in query params).
+        `failure` is the message shown if the request fails. Note what is NOT
+        in it: the URL, and urllib's own text. The login URL carries the
+        password in its query string, so no message built here interpolates
+        either -- which is why this client reads a status code and nothing else
+        off a failure, where its siblings name the URL they were reaching.
         """
         req = urllib.request.Request(url, method="GET")
         req.add_header("User-Agent", f"hamqth-mcp/{__version__}")
         try:
+            ratelimit.wait(url)
             with urllib.request.urlopen(req, timeout=15, context=_context()) as resp:
-                body = resp.read().decode("utf-8", errors="replace")
+                body: bytes = resp.read()
+        except urllib.error.HTTPError as exc:
+            # A 429 is HamQTH stating its limit outright, so it is honoured.
+            # Only the status and Retry-After are read off the exception; its
+            # text and .url are not used, per the note above. 503 counts only
+            # with Retry-After, which is a deliberate shed; a bare 503 is an
+            # outage and falls through.
+            if exc.code == 429 or (exc.code == 503 and exc.headers.get("Retry-After")):
+                raise ratelimit.RateLimited(
+                    ratelimit.block(url, exc.headers.get("Retry-After"))
+                ) from None
+            raise RuntimeError(failure) from None
+        except ratelimit.RateLimited:
+            # Raised by ratelimit.wait() when a previous 429 is still in force.
+            # It must not be rewritten as a connectivity failure by the clause
+            # below: it is the one failure here that tells the user what to do.
+            raise
         except Exception:
-            raise RuntimeError("HamQTH request failed — check network and credentials")
+            raise RuntimeError(failure) from None
+        return body
+
+    def _get_xml(self, url: str) -> ET.Element:
+        """HTTP GET, return parsed XML root."""
+        body = self._fetch(
+            url, "HamQTH request failed — check network and credentials"
+        ).decode("utf-8", errors="replace")
         return ET.fromstring(body)
 
     def _get_json(self, url: str) -> Any:
         """HTTP GET, return parsed JSON."""
-        req = urllib.request.Request(url, method="GET")
-        req.add_header("User-Agent", f"hamqth-mcp/{__version__}")
-        try:
-            with urllib.request.urlopen(req, timeout=15, context=_context()) as resp:
-                body = resp.read().decode("utf-8", errors="replace")
-        except Exception:
-            raise RuntimeError("HamQTH request failed — check network connectivity")
+        body = self._fetch(
+            url, "HamQTH request failed — check network connectivity"
+        ).decode("utf-8", errors="replace")
         try:
             return json.loads(body)
         except json.JSONDecodeError:
@@ -224,14 +248,9 @@ class HamQTHClient:
 
     def _get_text(self, url: str) -> str:
         """HTTP GET, return raw text body."""
-        req = urllib.request.Request(url, method="GET")
-        req.add_header("User-Agent", f"hamqth-mcp/{__version__}")
-        try:
-            with urllib.request.urlopen(req, timeout=15, context=_context()) as resp:
-                body: bytes = resp.read()
-        except Exception:
-            raise RuntimeError("HamQTH request failed — check network connectivity")
-        return body.decode("utf-8", errors="replace")
+        return self._fetch(
+            url, "HamQTH request failed — check network connectivity"
+        ).decode("utf-8", errors="replace")
 
     def _login(self) -> str:
         """Authenticate and return session ID."""
@@ -509,6 +528,16 @@ class HamQTHClient:
             qs = urllib.parse.urlencode(params)
             try:
                 data = self._get_json(f"{_BASE}/rbn_data.php?{qs}")
+            except ratelimit.RateLimited:
+                # Ahead of the clause below, which exists so an RBN outage
+                # answers "no decodes" rather than failing the tool. A rate
+                # limit must not take that path: it would cache an empty
+                # result and tell the user there were no decodes, when what
+                # happened is that we were told to stop and nobody looked.
+                # That is wrong data presented as right -- the failure the
+                # isError guarantee exists to prevent -- and RateLimited is a
+                # RuntimeError, so it reached here without this.
+                raise
             except RuntimeError:
                 data = {}
 

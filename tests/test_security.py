@@ -129,9 +129,11 @@ def test_the_root_set_is_carried_not_borrowed():
 def test_every_outbound_call_verifies():
     """Guarantee #8: a new fetch path cannot quietly skip the context.
 
-    There are three fetch helpers here, not one, which is exactly the case this
-    check is for — it is easy to add a context to the one being edited and
-    leave a sibling behind.
+    This began as a count of three fetch helpers, because the case it was
+    written for is forgetting a sibling while editing one of them. The three
+    now share a single _fetch, so there is one urlopen and that failure mode is
+    gone -- but the check stays, because the next fetch path added here would
+    reintroduce it, and a context omitted on it would otherwise be invisible.
 
     Line by line rather than by matching balanced parentheses: a regex for the
     whole call ends at the first ")", which is the one inside "_context()", so
@@ -140,7 +142,7 @@ def test_every_outbound_call_verifies():
     content = (SRC_DIR / "hamqth_mcp" / "client.py").read_text()
     calls = [(i, line) for i, line in enumerate(content.splitlines(), 1)
              if "urllib.request.urlopen(" in line]
-    assert len(calls) >= 3, f"expected the three fetch helpers; found {len(calls)}"
+    assert calls, "no urlopen call found; has the fetch path moved?"
     for number, line in calls:
         assert "context=_context()" in line, (
             f"client.py:{number} opens a connection without a verifying context: "
