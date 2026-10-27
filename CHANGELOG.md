@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **A `429` from HamQTH is now honoured.** HamQTH asking this client to stop is
+  the most explicit form a request limit takes, and it was previously invisible:
+  every failure became "HamQTH request failed — check network connectivity", so
+  a rate limit could not be told apart from a cable being out. Now the
+  `Retry-After` interval is read and bounded to between a minute and an hour, no
+  further request goes out until it has passed, and the tool says how long to
+  wait rather than sleeping through it.
+
+### Changed
+
+- **The three fetch helpers now share one path.** `_get_xml`, `_get_json` and
+  `_get_text` each had their own copy of the request and error handling. They
+  call one `_fetch`, which is where the request limits live. No message it
+  produces names the URL or repeats urllib's text, because the login URL carries
+  the password in its query string — that discipline is unchanged and now
+  asserted.
+
+## [Unreleased]
+
 ### Changed
 
 - **Requests to HamQTH are now spaced.** Where a provider states a request
