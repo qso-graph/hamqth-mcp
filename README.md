@@ -42,9 +42,9 @@ hamqth-mcp uses [qso-graph-auth](https://qso-graph.io/servers/qso-graph-auth/) p
 uv tool install qso-graph-auth
 
 # A persona (your callsign and the dates it covers), then HamQTH for it
-qso-auth persona add --name ki7mt --callsign KI7MT --start 2020-01-01
-qso-auth provider enable ki7mt hamqth
-qso-auth creds set ki7mt hamqth      # asks for your username, then your password (hidden)
+qso-graph-auth persona add --name ki7mt --callsign KI7MT --start 2020-01-01
+qso-graph-auth provider enable ki7mt hamqth
+qso-graph-auth creds set ki7mt hamqth      # asks for your username, then your password (hidden)
 ```
 
 All three steps are needed: without `provider enable`, the server reports that the persona has no `hamqth` ref.
