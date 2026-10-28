@@ -179,7 +179,7 @@ class TestToolErrorsAreFlagged:
         def no_creds(persona, provider, prefer=None):
             raise SecretMissing(persona, provider,
                                 f"Missing credentials for {provider} on persona '{persona}' "
-                                f"(run: qso-auth creds set {persona} {provider})")
+                                f"(run: qso-graph-auth creds set {persona} {provider})")
 
         monkeypatch.delenv("HAMQTH_MCP_MOCK", raising=False)
         monkeypatch.setattr(server, "_clients", {})
@@ -187,7 +187,7 @@ class TestToolErrorsAreFlagged:
             server, "_pm",
             lambda: type("PM", (), {"require": staticmethod(no_creds)})(),
         )
-        with pytest.raises(ToolError, match="qso-auth creds set"):
+        with pytest.raises(ToolError, match="qso-graph-auth creds set"):
             _call("hamqth_lookup")(persona="nosuch", callsign="KI7MT")
 
 
