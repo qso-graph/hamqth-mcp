@@ -26,7 +26,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the password in its query string — that discipline is unchanged and now
   asserted.
 
-## [Unreleased]
+## [0.7.1] — 2026-10-29
 
 ### Changed
 
