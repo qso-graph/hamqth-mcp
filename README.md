@@ -4,7 +4,7 @@
 [![PyPI](https://img.shields.io/pypi/v/hamqth-mcp?label=PyPI&color=blue)](https://pypi.org/project/hamqth-mcp/)
 [![MCP Registry](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fregistry.modelcontextprotocol.io%2Fv0%2Fservers%3Fsearch%3Dio.github.qso-graph%2Fhamqth-mcp%26version%3Dlatest&query=%24.servers%5B0%5D.server.version&label=MCP%20Registry&color=blue)](https://registry.modelcontextprotocol.io/v0/servers?search=io.github.qso-graph/hamqth-mcp&version=latest)
 
-MCP server for [HamQTH.com](https://www.hamqth.com/) — callsign lookup, DX cluster spots, Reverse Beacon Network, DXCC resolution, and more through any MCP-compatible AI assistant.
+MCP server for [HamQTH.com](https://www.hamqth.com/)—callsign lookup, DX cluster spots, Reverse Beacon Network, DXCC resolution, and more through any MCP-compatible AI assistant.
 
 Part of the [qso-graph](https://qso-graph.io/) project. Authenticated tools use [qso-graph-auth](https://pypi.org/project/qso-graph-auth/) for persona and credential management.
 
@@ -22,8 +22,8 @@ uvx hamqth-mcp            # run it; nothing to install
 | `hamqth_dxcc` | No | Resolve DXCC entity from callsign or ADIF code |
 | `hamqth_bio` | Yes | Fetch operator biography |
 | `hamqth_activity` | Yes | Recent DX cluster, RBN, and logbook activity |
-| `hamqth_dx_spots` | No | Live DX cluster spots — filter by band and/or callsign |
-| `hamqth_rbn` | No | Reverse Beacon Network decodes — filter by band, mode, continent, callsign |
+| `hamqth_dx_spots` | No | Live DX cluster spots—filter by band and/or callsign |
+| `hamqth_rbn` | No | Reverse Beacon Network decodes—filter by band, mode, continent, callsign |
 | `hamqth_verify_qso` | No | Verify a QSO via HamQTH SAVP protocol |
 | `get_version_info` | No | Service version + upstream HamQTH API version (fleet identity attestation) |
 
@@ -31,7 +31,7 @@ uvx hamqth-mcp            # run it; nothing to install
 
 ### 1. Create a free HamQTH account
 
-Sign up at [hamqth.com](https://www.hamqth.com/) — it's free, no subscription required.
+Sign up at [hamqth.com](https://www.hamqth.com/)—it's free, no subscription required.
 
 ### 2. Set up credentials
 
@@ -51,7 +51,7 @@ All three steps are needed: without `provider enable`, the server reports that t
 
 ### 3. Configure your MCP client
 
-hamqth-mcp works with any MCP-compatible client. Add the server config and restart — tools appear automatically.
+hamqth-mcp works with any MCP-compatible client. Add the server config and restart—tools appear automatically.
 
 #### Claude Desktop
 
@@ -161,7 +161,7 @@ Add to `~/.gemini/settings.json` (global) or `.gemini/settings.json` (project):
 
 ## Testing Without Credentials
 
-The DXCC tool (`hamqth_dxcc`) works without any credentials — it uses a public endpoint.
+The DXCC tool (`hamqth_dxcc`) works without any credentials—it uses a public endpoint.
 
 For testing all tools without a HamQTH account:
 
